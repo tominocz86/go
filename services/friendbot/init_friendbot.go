@@ -130,12 +130,12 @@ func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full,
 
 		resp, err := hclient.SubmitTransactionXDR(txe)
 		if err != nil {
-			log.Println(resp)
+			log.Printf("%+v\n", resp)
 			switch e := err.(type) {
 			case *horizonclient.Error:
 				problemString := fmt.Sprintf("Problem[Type=%s, Title=%s, Status=%d, Detail=%s, Extras=%v]", e.Problem.Type, e.Problem.Title, e.Problem.Status, e.Problem.Detail, e.Problem.Extras)
 				// If we hit an error here due to network congestion, try again until we hit max # of retries allowed
-				if e.Problem.Type == "timeout" {
+				if e.Problem.Status == http.StatusGatewayTimeout {
 					err = errors.Wrap(errors.Wrap(e, problemString), "submitting create accounts tx")
 					if currentsubmitTxRetry >= submitTxRetriesAllowed {
 						return minions, errors.Wrap(err, fmt.Sprintf("after retrying %d times", currentsubmitTxRetry))

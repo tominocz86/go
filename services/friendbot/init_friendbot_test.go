@@ -82,7 +82,7 @@ func TestInitFriendbot_createMinionAccounts_timeoutError(t *testing.T) {
 
 	numMinion := 1000
 	createdMinions, err := createMinionAccounts(botAccount, botKeypair, "Test SDF Network ; September 2015", "10000", "101", numMinion, 1000, &horizonClientMock)
-	assert.Equal(t, len(createdMinions), 75)
+	assert.Equal(t, 150, len(createdMinions))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "after retrying 5 times: submitting create accounts tx:")
 }
