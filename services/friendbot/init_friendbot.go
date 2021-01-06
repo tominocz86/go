@@ -56,10 +56,14 @@ func initFriendbot(
 	return &internal.Bot{Minions: minions}, nil
 }
 
-func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full, networkPassphrase, newAccountBalance, minionBalance string, numMinions int, baseFee int64, hclient *horizonclient.Client) ([]internal.Minion, error) {
+func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full, networkPassphrase, newAccountBalance, minionBalance string, numMinions int, baseFee int64, hclient horizonclient.ClientInterface) ([]internal.Minion, error) {
 	var minions []internal.Minion
 	numRemainingMinions := numMinions
-	minionBatchSize := 100
+	minionBatchSize := 50
+	// Allow retries to account for testnet congestion
+	submitTxRetriesAllowed := 5
+	currentsubmitTxRetry := 0
+
 	for numRemainingMinions > 0 {
 		var (
 			newMinions []internal.Minion
@@ -130,10 +134,22 @@ func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full,
 			switch e := err.(type) {
 			case *horizonclient.Error:
 				problemString := fmt.Sprintf("Problem[Type=%s, Title=%s, Status=%d, Detail=%s, Extras=%v]", e.Problem.Type, e.Problem.Title, e.Problem.Status, e.Problem.Detail, e.Problem.Extras)
+				// If we hit an error here due to network congestion, try again until we hit max # of retries allowed
+				if e.Problem.Type == "timeout" {
+					err = errors.Wrap(errors.Wrap(e, problemString), "submitting create accounts tx")
+					if currentsubmitTxRetry >= submitTxRetriesAllowed {
+						return minions, errors.Wrap(err, fmt.Sprintf("after retrying %d times", currentsubmitTxRetry))
+					}
+					log.Println(err)
+					log.Println("trying again to submit create accounts tx")
+					currentsubmitTxRetry += 1
+					continue
+				}
 				return minions, errors.Wrap(errors.Wrap(e, problemString), "submitting create accounts tx")
 			}
 			return minions, errors.Wrap(err, "submitting create accounts tx")
 		}
+		currentsubmitTxRetry = 0
 
 		// Process successful create accounts tx.
 		numRemainingMinions -= numCreateMinions
