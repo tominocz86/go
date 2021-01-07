@@ -27,8 +27,8 @@ type Config struct {
 	TLS                    *config.TLS `valid:"optional"`
 	NumMinions             int         `toml:"num_minions" valid:"optional"`
 	BaseFee                int64       `toml:"base_fee" valid:"optional"`
-	MinionBatchSize        int         `toml:"minion_batch_size" valid:"required"`
-	SubmitTxRetriesAllowed int         `toml:"submit_tx_retries_allowed" valid:"required"`
+	MinionBatchSize        int         `toml:"minion_batch_size" valid:"optional"`
+	SubmitTxRetriesAllowed int         `toml:"submit_tx_retries_allowed" valid:"optional"`
 }
 
 func main() {

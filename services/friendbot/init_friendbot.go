@@ -45,9 +45,16 @@ func initFriendbot(
 	// already confirmed that friendbotSecret is a seed.
 	botKeypair := botKP.(*keypair.Full)
 	botAccount := internal.Account{AccountID: botKeypair.Address()}
+	// set default values
 	minionBalance := "101.00"
 	if numMinions == 0 {
 		numMinions = 1000
+	}
+	if minionBatchSize == 0 {
+		minionBatchSize = 50
+	}
+	if submitTxRetriesAllowed == 0 {
+		submitTxRetriesAllowed = 5
 	}
 	log.Printf("Found all valid params, now creating %d minions", numMinions)
 	minions, err := createMinionAccounts(botAccount, botKeypair, networkPassphrase, startingBalance, minionBalance, numMinions, minionBatchSize, submitTxRetriesAllowed, baseFee, hclient)
