@@ -20,6 +20,8 @@ func initFriendbot(
 	startingBalance string,
 	numMinions int,
 	baseFee int64,
+	minionBatchSize int,
+	submitTxRetriesAllowed int,
 ) (*internal.Bot, error) {
 	if friendbotSecret == "" || networkPassphrase == "" || horizonURL == "" || startingBalance == "" || numMinions < 0 {
 		return nil, errors.New("invalid input param(s)")
@@ -48,7 +50,7 @@ func initFriendbot(
 		numMinions = 1000
 	}
 	log.Printf("Found all valid params, now creating %d minions", numMinions)
-	minions, err := createMinionAccounts(botAccount, botKeypair, networkPassphrase, startingBalance, minionBalance, numMinions, baseFee, hclient)
+	minions, err := createMinionAccounts(botAccount, botKeypair, networkPassphrase, startingBalance, minionBalance, numMinions, minionBatchSize, submitTxRetriesAllowed, baseFee, hclient)
 	if err != nil && len(minions) == 0 {
 		return nil, errors.Wrap(err, "creating minion accounts")
 	}
@@ -56,13 +58,13 @@ func initFriendbot(
 	return &internal.Bot{Minions: minions}, nil
 }
 
-func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full, networkPassphrase, newAccountBalance, minionBalance string, numMinions int, baseFee int64, hclient horizonclient.ClientInterface) ([]internal.Minion, error) {
+func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full, networkPassphrase, newAccountBalance, minionBalance string,
+	numMinions, minionBatchSize, submitTxRetriesAllowed int, baseFee int64, hclient horizonclient.ClientInterface) ([]internal.Minion, error) {
+
 	var minions []internal.Minion
 	numRemainingMinions := numMinions
-	minionBatchSize := 50
 	// Allow retries to account for testnet congestion
-	submitTxRetriesAllowed := 5
-	currentsubmitTxRetry := 0
+	currentSubmitTxRetry := 0
 
 	for numRemainingMinions > 0 {
 		var (
@@ -74,7 +76,7 @@ func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full,
 		if rerr != nil {
 			return minions, errors.Wrap(rerr, "refreshing bot seqnum")
 		}
-		// The tx will create min(numRemainingMinions, 100) Minion accounts.
+		// The tx will create min(numRemainingMinions, minionBatchSize) Minion accounts.
 		numCreateMinions := minionBatchSize
 		if numRemainingMinions < minionBatchSize {
 			numCreateMinions = numRemainingMinions
@@ -137,19 +139,19 @@ func createMinionAccounts(botAccount internal.Account, botKeypair *keypair.Full,
 				// If we hit an error here due to network congestion, try again until we hit max # of retries allowed
 				if e.Problem.Status == http.StatusGatewayTimeout {
 					err = errors.Wrap(errors.Wrap(e, problemString), "submitting create accounts tx")
-					if currentsubmitTxRetry >= submitTxRetriesAllowed {
-						return minions, errors.Wrap(err, fmt.Sprintf("after retrying %d times", currentsubmitTxRetry))
+					if currentSubmitTxRetry >= submitTxRetriesAllowed {
+						return minions, errors.Wrap(err, fmt.Sprintf("after retrying %d times", currentSubmitTxRetry))
 					}
 					log.Println(err)
 					log.Println("trying again to submit create accounts tx")
-					currentsubmitTxRetry += 1
+					currentSubmitTxRetry += 1
 					continue
 				}
 				return minions, errors.Wrap(errors.Wrap(e, problemString), "submitting create accounts tx")
 			}
 			return minions, errors.Wrap(err, "submitting create accounts tx")
 		}
-		currentsubmitTxRetry = 0
+		currentSubmitTxRetry = 0
 
 		// Process successful create accounts tx.
 		numRemainingMinions -= numCreateMinions

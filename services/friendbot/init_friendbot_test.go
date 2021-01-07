@@ -38,8 +38,9 @@ func TestInitFriendbot_createMinionAccounts_success(t *testing.T) {
 		Return(horizon.Transaction{}, nil)
 
 	numMinion := 1000
-
-	createdMinions, err := createMinionAccounts(botAccount, botKeypair, "Test SDF Network ; September 2015", "10000", "101", numMinion, 1000, &horizonClientMock)
+	minionBatchSize := 50
+	submitTxRetriesAllowed := 5
+	createdMinions, err := createMinionAccounts(botAccount, botKeypair, "Test SDF Network ; September 2015", "10000", "101", numMinion, minionBatchSize, submitTxRetriesAllowed, 1000, &horizonClientMock)
 	assert.NoError(t, err)
 
 	assert.Equal(t, 1000, len(createdMinions))
@@ -81,7 +82,9 @@ func TestInitFriendbot_createMinionAccounts_timeoutError(t *testing.T) {
 		Return(horizon.Transaction{}, hError)
 
 	numMinion := 1000
-	createdMinions, err := createMinionAccounts(botAccount, botKeypair, "Test SDF Network ; September 2015", "10000", "101", numMinion, 1000, &horizonClientMock)
+	minionBatchSize := 50
+	submitTxRetriesAllowed := 5
+	createdMinions, err := createMinionAccounts(botAccount, botKeypair, "Test SDF Network ; September 2015", "10000", "101", numMinion, minionBatchSize, submitTxRetriesAllowed, 1000, &horizonClientMock)
 	assert.Equal(t, 150, len(createdMinions))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "after retrying 5 times: submitting create accounts tx:")
