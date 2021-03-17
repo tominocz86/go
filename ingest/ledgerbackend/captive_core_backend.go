@@ -111,6 +111,8 @@ type CaptiveCoreConfig struct {
 	NetworkPassphrase string
 	// HistoryArchiveURLs are a list of history archive urls
 	HistoryArchiveURLs []string
+	// LogPath is the path in which to store Core logs
+	LogPath string
 
 	// Optional fields
 
