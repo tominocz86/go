@@ -118,9 +118,8 @@ func (r *stellarCoreRunner) generateConfig() (string, error) {
 		fmt.Sprintf(`NETWORK_PASSPHRASE="%s"`, r.networkPassphrase),
 		fmt.Sprintf(`BUCKET_DIR_PATH="%s"`, filepath.Join(r.tempDir, "buckets")),
 		fmt.Sprintf(`HTTP_PORT=%d`, r.httpPort),
+		fmt.Sprintf(`LOG_FILE_PATH="%s"`, r.logPath),
 	}
-
-	lines = append(lines, fmt.Sprintf(`LOG_FILE_PATH="%s"`, r.logPath))
 
 	if r.mode == stellarCoreRunnerModeOffline {
 		// In offline mode, there is no need to connect to peers
