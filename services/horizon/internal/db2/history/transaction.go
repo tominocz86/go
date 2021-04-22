@@ -1,6 +1,8 @@
 package history
 
 import (
+	"database/sql"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/stellar/go/services/horizon/internal/db2"
 	"github.com/stellar/go/services/horizon/internal/toid"
@@ -23,13 +25,25 @@ func (q *Q) TransactionsByHashes(dest interface{}, hashes []string) error {
 	}
 	union := byHash.Suffix("UNION ALL "+byInnerHashString, args...)
 
-	return q.Get(dest, union)
+	return q.Select(dest, union)
 }
 
 // TransactionByHash is a query that loads a single row from the
 // `history_transactions` table based upon the provided hash.
 func (q *Q) TransactionByHash(dest interface{}, hash string) error {
-	return q.TransactionsByHashes(dest, []string{hash})
+	var txs []Transaction
+	err := q.TransactionsByHashes(&txs, []string{hash})
+	if err != nil {
+		return err
+	}
+
+	if len(txs) > 0 {
+		ptr := dest.(*Transaction)
+		*ptr = txs[0]
+		return nil
+	} else {
+		return sql.ErrNoRows
+	}
 }
 
 // TransactionsByIDs fetches transactions from the `history_transactions` table

@@ -18,6 +18,18 @@ func TestGetIngestedTx(t *testing.T) {
 	tt.Assert.Equal(hash, tx.TransactionHash)
 }
 
+func TestGetIngestedTxHashes(t *testing.T) {
+	tt := test.Start(t)
+	tt.Scenario("base")
+	defer tt.Finish()
+	q := &history.Q{Session: tt.HorizonSession()}
+	hashes := []string{"2374e99349b9ef7dba9a5db3339b78fda8f34777b1af33ba468ad5c0df946d4d"}
+	var txs []history.Transaction
+	err := q.TransactionsByHashes(&txs, hashes)
+	tt.Assert.NoError(err)
+	tt.Assert.Equal(hashes[0], txs[0].TransactionHash)
+}
+
 func TestGetMissingTx(t *testing.T) {
 	tt := test.Start(t)
 	tt.Scenario("base")
