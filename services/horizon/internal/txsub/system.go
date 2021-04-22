@@ -316,8 +316,12 @@ func (sys *System) Tick(ctx context.Context) {
 			return
 		}
 
+		if latestLedger >= 100 {
+			latestLedger -= 100 // uint32 overflow protection
+		}
+
 		var txs []history.Transaction
-		err = db.TransactionsByHashesSinceLedger(&txs, pending, latestLedger-100)
+		err = db.TransactionsByHashesSinceLedger(&txs, pending, latestLedger)
 		if err != nil && !db.NoRows(err) {
 			logger.WithError(err).Error("error getting transactions by hashes")
 			return
