@@ -1,8 +1,6 @@
 package history
 
 import (
-	"database/sql"
-
 	sq "github.com/Masterminds/squirrel"
 	"github.com/stellar/go/services/horizon/internal/db2"
 	"github.com/stellar/go/services/horizon/internal/toid"
@@ -10,14 +8,32 @@ import (
 	"github.com/stellar/go/xdr"
 )
 
-// TransactionsByHashes fetches transactions from the `history_transactions` table
-// which match the given hash.
-// Note that
-func (q *Q) TransactionsByHashes(dest interface{}, hashes []string) error {
+// TransactionByHash is a query that loads a single row from the
+// `history_transactions` table based upon the provided hash.
+func (q *Q) TransactionByHash(dest interface{}, hash string) error {
 	byHash := selectTransaction.
-		Where(map[string]interface{}{"ht.transaction_hash": hashes})
+		Where("ht.transaction_hash = ?", hash)
 	byInnerHash := selectTransaction.
-		Where(map[string]interface{}{"ht.inner_transaction_hash": hashes})
+		Where("ht.inner_transaction_hash = ?", hash)
+
+	byInnerHashString, args, err := byInnerHash.ToSql()
+	if err != nil {
+		return errors.Wrap(err, "could not get string for inner hash sql query")
+	}
+	union := byHash.Suffix("UNION ALL "+byInnerHashString, args...)
+
+	return q.Get(dest, union)
+}
+
+// TransactionsByHashesSinceLedger fetches transactions from the `history_transactions`
+// table which match the given hash since the given ledger sequence (for perf reasons).
+func (q *Q) TransactionsByHashesSinceLedger(dest interface{}, hashes []string, sinceLedgerSeq uint32) error {
+	byHash := selectTransaction.
+		Where(map[string]interface{}{"ht.transaction_hash": hashes}).
+		Where(sq.GtOrEq{"ht.ledger_sequence": sinceLedgerSeq})
+	byInnerHash := selectTransaction.
+		Where(map[string]interface{}{"ht.inner_transaction_hash": hashes}).
+		Where(sq.GtOrEq{"ht.ledger_sequence": sinceLedgerSeq})
 
 	byInnerHashString, args, err := byInnerHash.ToSql()
 	if err != nil {
@@ -26,24 +42,6 @@ func (q *Q) TransactionsByHashes(dest interface{}, hashes []string) error {
 	union := byHash.Suffix("UNION ALL "+byInnerHashString, args...)
 
 	return q.Select(dest, union)
-}
-
-// TransactionByHash is a query that loads a single row from the
-// `history_transactions` table based upon the provided hash.
-func (q *Q) TransactionByHash(dest interface{}, hash string) error {
-	var txs []Transaction
-	err := q.TransactionsByHashes(&txs, []string{hash})
-	if err != nil {
-		return err
-	}
-
-	if len(txs) > 0 {
-		ptr := dest.(*Transaction)
-		*ptr = txs[0]
-		return nil
-	} else {
-		return sql.ErrNoRows
-	}
 }
 
 // TransactionsByIDs fetches transactions from the `history_transactions` table

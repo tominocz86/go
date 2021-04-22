@@ -15,8 +15,9 @@ import (
 )
 
 type HorizonDB interface {
+	GetLatestHistoryLedger() (uint32, error)
 	TransactionByHash(dest interface{}, hash string) error
-	TransactionsByHashes(dest interface{}, hashes []string) error
+	TransactionsByHashesSinceLedger(dest interface{}, hashes []string, sinceLedgerSeq uint32) error
 	GetSequenceNumbers(addresses []string) (map[string]uint64, error)
 	BeginTx(*sql.TxOptions) error
 	Rollback() error
@@ -309,8 +310,14 @@ func (sys *System) Tick(ctx context.Context) {
 	pending := sys.Pending.Pending(ctx)
 
 	if len(pending) > 0 {
+		latestLedger, err := db.GetLatestHistoryLedger()
+		if err != nil {
+			logger.WithError(err).Error("error getting latest history ledger")
+			return
+		}
+
 		var txs []history.Transaction
-		err := db.TransactionsByHashes(&txs, pending)
+		err = db.TransactionsByHashesSinceLedger(&txs, pending, latestLedger-100)
 		if err != nil && !db.NoRows(err) {
 			logger.WithError(err).Error("error getting transactions by hashes")
 			return

@@ -113,6 +113,8 @@ func (suite *SystemTestSuite) SetupTest() {
 	suite.badSeq = SubmissionResult{
 		Err: ErrBadSequence,
 	}
+
+	suite.db.On("GetLatestHistoryLedger").Return(uint32(1000), nil).Maybe()
 }
 
 func (suite *SystemTestSuite) TearDownTest() {
@@ -327,7 +329,7 @@ func (suite *SystemTestSuite) TestTick_FinishesTransactions() {
 		ReadOnly:  true,
 	}).Return(nil).Once()
 	suite.db.On("Rollback").Return(nil).Once()
-	suite.db.On("TransactionsByHashes", mock.Anything, []string{suite.successTx.Transaction.TransactionHash}).
+	suite.db.On("TransactionsByHashesSinceLedger", mock.Anything, []string{suite.successTx.Transaction.TransactionHash}, uint32(900)).
 		Return(sql.ErrNoRows).Once()
 	suite.db.On("NoRows", sql.ErrNoRows).Return(true).Once()
 
@@ -341,7 +343,7 @@ func (suite *SystemTestSuite) TestTick_FinishesTransactions() {
 		ReadOnly:  true,
 	}).Return(nil).Once()
 	suite.db.On("Rollback").Return(nil).Once()
-	suite.db.On("TransactionsByHashes", mock.Anything, []string{suite.successTx.Transaction.TransactionHash}).
+	suite.db.On("TransactionsByHashesSinceLedger", mock.Anything, []string{suite.successTx.Transaction.TransactionHash}, uint32(900)).
 		Run(func(args mock.Arguments) {
 			ptr := args.Get(0).(*[]history.Transaction)
 			*ptr = []history.Transaction{suite.successTx.Transaction}
@@ -425,7 +427,7 @@ func (suite *SystemTestSuite) TestTick_RemovesStaleSubmissions() {
 		ReadOnly:  true,
 	}).Return(nil).Once()
 	suite.db.On("Rollback").Return(nil).Once()
-	suite.db.On("TransactionsByHashes", mock.Anything, []string{suite.successTx.Transaction.TransactionHash}).
+	suite.db.On("TransactionsByHashesSinceLedger", mock.Anything, []string{suite.successTx.Transaction.TransactionHash}, uint32(900)).
 		Return(sql.ErrNoRows).Once()
 	suite.db.On("NoRows", sql.ErrNoRows).Return(true).Once()
 

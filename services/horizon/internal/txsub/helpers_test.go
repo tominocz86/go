@@ -44,13 +44,18 @@ func (m *mockDBQ) NoRows(err error) bool {
 	return args.Bool(0)
 }
 
+func (m *mockDBQ) GetLatestHistoryLedger() (uint32, error) {
+	args := m.Called()
+	return args.Get(0).(uint32), args.Error(1)
+}
+
 func (m *mockDBQ) GetSequenceNumbers(addresses []string) (map[string]uint64, error) {
 	args := m.Called(addresses)
 	return args.Get(0).(map[string]uint64), args.Error(1)
 }
 
-func (m *mockDBQ) TransactionsByHashes(dest interface{}, hashes []string) error {
-	args := m.Called(dest, hashes)
+func (m *mockDBQ) TransactionsByHashesSinceLedger(dest interface{}, hashes []string, sinceLedgerSeq uint32) error {
+	args := m.Called(dest, hashes, sinceLedgerSeq)
 	return args.Error(0)
 }
 
