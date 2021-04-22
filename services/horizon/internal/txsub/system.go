@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stellar/go/services/horizon/internal/db2/history"
 	"github.com/stellar/go/services/horizon/internal/txsub/sequence"
 	"github.com/stellar/go/support/log"
 	"github.com/stellar/go/xdr"
@@ -15,6 +16,7 @@ import (
 
 type HorizonDB interface {
 	TransactionByHash(dest interface{}, hash string) error
+	TransactionsByHashes(dest interface{}, hashes []string) error
 	GetSequenceNumbers(addresses []string) (map[string]uint64, error)
 	BeginTx(*sql.TxOptions) error
 	Rollback() error
@@ -304,23 +306,43 @@ func (sys *System) Tick(ctx context.Context) {
 		}
 	}
 
-	for _, hash := range sys.Pending.Pending(ctx) {
-		tx, err := txResultByHash(db, hash)
+	pending := sys.Pending.Pending(ctx)
 
-		if err == nil {
-			logger.WithField("hash", hash).Debug("finishing open submission")
-			sys.Pending.Finish(ctx, hash, Result{Transaction: tx})
-			continue
+	if len(pending) > 0 {
+		var txs []history.Transaction
+		err := db.TransactionsByHashes(&txs, pending)
+		if err != nil && !db.NoRows(err) {
+			logger.WithError(err).Error("error getting transactions by hashes")
+			return
 		}
 
-		if _, ok := err.(*FailedTransactionError); ok {
-			logger.WithField("hash", hash).Debug("finishing open submission")
-			sys.Pending.Finish(ctx, hash, Result{Transaction: tx, Err: err})
-			continue
+		txMap := make(map[string]history.Transaction, len(txs))
+		for _, tx := range txs {
+			txMap[tx.TransactionHash] = tx
 		}
 
-		if err != ErrNoResults {
-			logger.WithStack(err).Error(err)
+		for _, hash := range pending {
+			tx, found := txMap[hash]
+			if !found {
+				continue
+			}
+			_, err := txResultFromHistory(tx)
+
+			if err == nil {
+				logger.WithField("hash", hash).Debug("finishing open submission")
+				sys.Pending.Finish(ctx, hash, Result{Transaction: tx})
+				continue
+			}
+
+			if _, ok := err.(*FailedTransactionError); ok {
+				logger.WithField("hash", hash).Debug("finishing open submission")
+				sys.Pending.Finish(ctx, hash, Result{Transaction: tx, Err: err})
+				continue
+			}
+
+			if err != nil {
+				logger.WithStack(err).Error(err)
+			}
 		}
 	}
 

@@ -9,6 +9,7 @@ package txsub
 import (
 	"context"
 	"database/sql"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -46,6 +47,11 @@ func (m *mockDBQ) NoRows(err error) bool {
 func (m *mockDBQ) GetSequenceNumbers(addresses []string) (map[string]uint64, error) {
 	args := m.Called(addresses)
 	return args.Get(0).(map[string]uint64), args.Error(1)
+}
+
+func (m *mockDBQ) TransactionsByHashes(dest interface{}, hashes []string) error {
+	args := m.Called(dest, hashes)
+	return args.Error(0)
 }
 
 func (m *mockDBQ) TransactionByHash(dest interface{}, hash string) error {

@@ -8,13 +8,14 @@ import (
 	"github.com/stellar/go/xdr"
 )
 
-// TransactionByHash is a query that loads a single row from the
-// `history_transactions` table based upon the provided hash.
-func (q *Q) TransactionByHash(dest interface{}, hash string) error {
+// TransactionsByHashes fetches transactions from the `history_transactions` table
+// which match the given hash.
+// Note that
+func (q *Q) TransactionsByHashes(dest interface{}, hashes []string) error {
 	byHash := selectTransaction.
-		Where("ht.transaction_hash = ?", hash)
+		Where(map[string]interface{}{"ht.transaction_hash": hashes})
 	byInnerHash := selectTransaction.
-		Where("ht.inner_transaction_hash = ?", hash)
+		Where(map[string]interface{}{"ht.inner_transaction_hash": hashes})
 
 	byInnerHashString, args, err := byInnerHash.ToSql()
 	if err != nil {
@@ -23,6 +24,12 @@ func (q *Q) TransactionByHash(dest interface{}, hash string) error {
 	union := byHash.Suffix("UNION ALL "+byInnerHashString, args...)
 
 	return q.Get(dest, union)
+}
+
+// TransactionByHash is a query that loads a single row from the
+// `history_transactions` table based upon the provided hash.
+func (q *Q) TransactionByHash(dest interface{}, hash string) error {
+	return q.TransactionsByHashes(dest, []string{hash})
 }
 
 // TransactionsByIDs fetches transactions from the `history_transactions` table
