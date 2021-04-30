@@ -364,20 +364,20 @@ type ReplicaSyncCheckMiddleware struct {
 // WrapFunc executes the middleware on a given HTTP handler function
 func (m *ReplicaSyncCheckMiddleware) WrapFunc(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		for attempt := 1; attempt <= 3; attempt++ {
-			replicaIngestLedger, err := m.ReplicaHistoryQ.GetLastLedgerIngestNonBlocking()
-			if err != nil {
-				problem.Render(r.Context(), w, err)
-				return
-			}
-
+		for attempt := 1; attempt <= 4; attempt++ {
 			primaryIngestLedger, err := m.PrimaryHistoryQ.GetLastLedgerIngestNonBlocking()
 			if err != nil {
 				problem.Render(r.Context(), w, err)
 				return
 			}
 
-			if primaryIngestLedger == replicaIngestLedger {
+			replicaIngestLedger, err := m.ReplicaHistoryQ.GetLastLedgerIngestNonBlocking()
+			if err != nil {
+				problem.Render(r.Context(), w, err)
+				return
+			}
+
+			if replicaIngestLedger >= primaryIngestLedger {
 				break
 			}
 
@@ -387,6 +387,8 @@ func (m *ReplicaSyncCheckMiddleware) WrapFunc(h http.HandlerFunc) http.HandlerFu
 			case 2:
 				time.Sleep(40 * time.Millisecond)
 			case 3:
+				time.Sleep(80 * time.Millisecond)
+			case 4:
 				problem.Render(r.Context(), w, hProblem.StaleHistory)
 				m.ServerMetrics.ReplicaLagErrorsCounter.Inc()
 				return
